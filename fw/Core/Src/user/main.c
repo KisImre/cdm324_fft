@@ -5,6 +5,7 @@
 #include "user/clocks.h"
 #include "user/debug.h"
 #include "user/main.h"
+#include "user/sd_card_logger.h"
 // Do we skip data analysis after updating display?
 //#define SKIP_ADC_DATA_AFTER_DISPLAY
 // After how many FFTs do we update display
@@ -19,7 +20,7 @@
 void main_user(void)
 {
 	BOOL output_debug_enabled = FALSE;
-	BOOL sd_card_initialized = FALSE;
+	BOOL logger_initialized = FALSE;
 	BOOL remove_low_freqs = FALSE;
 	uint16_t last_fft_return = 0;
 	uint16_t fft_nb_counter = 0;
@@ -27,6 +28,8 @@ void main_user(void)
 #ifdef CUR_TRANSIENT_TEST
 	uint16_t temp_counter = 0;
 #endif
+	uint16_t speed = 0;
+	struct sd_card_logger logger = { 0 };
 
 	/* Clock init */
 	clocks_init();
@@ -50,8 +53,13 @@ void main_user(void)
 	/* IO expander init */
 	if (expander_init() != FALSE)
 	{
-		sd_card_initialized = TRUE;
+		if (sd_card_logger_init(&logger) == FR_OK)
+		{
+			debug_print_string("SD card logger initialized\r\n");
+			logger_initialized = TRUE;
+		}
 	}
+
 
 	/* Trigger analog conversions */
 	analog_trigger_conversion();
@@ -84,17 +92,29 @@ void main_user(void)
 						{
 							idle_anim_st = 0;
 						}
+
+						if (logger_initialized != FALSE)
+						{
+							/* Flush SD card log data when idle */
+							sd_card_logger_flush(&logger);
+						}
 					}
 					else
 					{
 						/* Convert to mph or kph depending on user selection */
 						if (expander_is_kph_selected() != FALSE)
 						{
-							display_speed((uint16_t)(last_fft_return * 0.2262295));
+							speed = (uint16_t)(last_fft_return * 0.2262295);
 						}
 						else
 						{
-							display_speed((uint16_t)(last_fft_return * 0.1449275));
+							speed = (uint16_t)(last_fft_return * 0.1449275);
+						}
+
+						display_speed(speed);
+						if (logger_initialized != FALSE)
+						{
+							sd_card_logger_log(&logger, speed);
 						}
 					}
 #else

@@ -4,7 +4,6 @@
 SPI_HandleTypeDef hspi3;
 /* Variables to write to the SD card */
 FATFS expander_board_fs;
-FIL expander_board_file;
 
 
 /*! \fn     expander_init(void)
@@ -70,16 +69,11 @@ BOOL expander_init(void)
 	if (HAL_GPIO_ReadPin(SD_CD_Pin_Port, SD_CD_Pin) == GPIO_PIN_RESET)
 	{
 		/* Mount filesystem */
-		f_mount(&expander_board_fs, "", 0);
-
-		/* Test code */
-		/*f_open(&expander_board_file, "test.txt", FA_OPEN_ALWAYS | FA_WRITE | FA_READ);
-		f_lseek(&expander_board_file, expander_board_file.fsize);
-		f_puts("This is an example text to check SD Card Module with STM32 Blue Pill\n", &expander_board_file);
-		f_close(&expander_board_file);*/
-
-		/* Return success */
-		return TRUE;
+		if (f_mount(&expander_board_fs, "", 1) == FR_OK)
+		{
+			/* Return success */
+			return TRUE;
+		}
 	}
 
 	/* No uSD card */
